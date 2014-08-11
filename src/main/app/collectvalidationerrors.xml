@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" version="CE-3.4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd">
+
+	<spring:beans>
+		<spring:bean id="xmlErrorHandler" class="ValidationErrorHandler" scope="prototype" />
+		<spring:bean id="customFilter" class="CustomSchemaValidationFilter" init-method="initialise" scope="prototype">
+			<spring:property name="schemaLocations" value="schema.xsd" />
+			<spring:property name="errorHandler" ref="xmlErrorHandler" />
+		</spring:bean>
+	</spring:beans>
+
+	<flow name="validate" doc:name="validate">
+		<vm:inbound-endpoint path="in" exchange-pattern="request-response" />
+
+		<custom-filter class="FilterProxy" doc:name="Custom">
+			<spring:property name="realFilterId" value="customFilter" />
+			<spring:property name="enabled" value="true" />
+		</custom-filter>
+
+		<exception-strategy ref="ExceptionStrategy" />
+	</flow>
+
+	<choice-exception-strategy name="ExceptionStrategy">
+		<catch-exception-strategy doc:name="Catch Exception Strategy" when="exception.causedBy(exceptions.FilterUnacceptedException)">
+			<expression-component doc:name="Expression">
+                <![CDATA[
+                message.payload = 'Request does not comply with service schema: '+message.outboundProperties['SAX_ERROR_PROPERTIES'];
+                ]]>
+			</expression-component>
+		</catch-exception-strategy>
+	</choice-exception-strategy>
+
+</mule>
+
